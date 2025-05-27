@@ -1,0 +1,48 @@
+# Script R: Eliminar espacios en blanco en datos de Excel
+# Proyecto: Visual Studio (RTVS o Visual Studio Code con extensión R)
+# -----------------------------------------------------------------------------
+# Instrucciones para Visual Studio:
+# 1. Abre Visual Studio con la extensión "R Tools for Visual Studio" instalada.
+# 2. Crea un nuevo proyecto de tipo "R Project" o abre una carpeta existente.
+# 3. Agrega este archivo al proyecto.
+# 4. Ejecuta cada bloque de código desde el editor de R.
+
+# --- 1. Instalación de paquetes (solo la primera vez) ---
+if (!requireNamespace("readxl", quietly = TRUE)) install.packages("readxl")
+if (!requireNamespace("writexl", quietly = TRUE)) install.packages("writexl")
+if (!requireNamespace("dplyr", quietly = TRUE)) install.packages("dplyr")
+if (!requireNamespace("stringr", quietly = TRUE)) install.packages("stringr")
+if (!requireNamespace("xlsx", quietly = TRUE)) install.packages("xlsx")
+
+library(readxl)
+library(writexl)
+library(dplyr)
+library(stringr)
+library(xlsx)
+
+# --- 2. Parámetros de entrada/salida ---
+ruta_entrada <- "C:/Users/nicot/OneDrive/Escritorio/Trabajo_Inferencia/Limpieza_Base/Housing.xlsx"
+hoja <- NULL
+ruta_salida <- "C:/Users/nicot/OneDrive/Escritorio/Trabajo_Inferencia/Limpieza_Base/archivo_limpio.xlsx"
+
+# --- 3. Cargar datos desde Excel ---
+df <- read_excel(path = ruta_entrada, sheet = hoja)
+
+# --- 4. Función para limpiar espacios en columnas de texto ---
+limpiar_espacios <- function(datos) {
+  datos %>%
+    mutate(across(
+      .cols = where(is.character),
+      .fns  = ~ str_squish(.x)
+    ))
+}
+
+# --- 5. Aplicar limpieza ---
+df_limpio <- limpiar_espacios(df)
+
+# --- 6. Guardar resultados en Excel ---
+write_xlsx(df_limpio, path = ruta_salida)
+
+# --- 7. Mensaje final ---
+cat("Archivo limpio guardado en: C:/Users/nicot/OneDrive/Escritorio
+/Trabajo_Inferencia/Limpieza_Base/archivo_limpio.xlsx", ruta_salida, "\n")
