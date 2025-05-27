@@ -1,0 +1,85 @@
+# -----------------------------------------------------------------------------
+# Script R: Identificación de Outliers en datos de Excel
+# -----------------------------------------------------------------------------
+# Descripción:
+# Este script carga un archivo Excel y detecta outliers en columnas numéricas
+# usando dos métodos: IQR (Interquartile Range) y Z-score.
+# Genera un resumen con la cantidad de outliers por columna y opcionalmente
+# exporta el detalle de filas con outliers a un archivo .xlsx.
+
+# --- 1. Instalación y carga de paquetes ---
+if (!requireNamespace("readxl", quietly = TRUE)) install.packages("readxl")
+if (!requireNamespace("dplyr", quietly = TRUE)) install.packages("dplyr")
+if (!requireNamespace("tidyr", quietly = TRUE)) install.packages("tidyr")
+if (!requireNamespace("writexl", quietly = TRUE)) install.packages("writexl")
+
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(writexl)
+
+# --- 2. Parámetros de entrada/salida ---
+ruta_entrada <- "C:/Users/nicot/OneDrive/Escritorio/Trabajo_Inferencia/Limpieza_Base/archivo_limpio.xlsx"# Ruta al archivo Excel de entrada
+hoja <- NULL                          # Nombre de la hoja (NULL = primera hoja)
+metodo <- "iqr"                      # "iqr" o "zscore"
+factor <- 1.5                         # Factor IQR o umbral Z-score
+exportar_detalle <- TRUE              # TRUE para exportar detalle a .xlsx
+ruta_detalle <- "C:/Users/nicot/OneDrive/Escritorio/Trabajo_Inferencia/Limpieza_Base/outliers_detalle.xlsx"  # Ruta para archivo de detalle
+
+# --- 3. Cargar datos ---
+df <- read_excel(path = ruta_entrada, sheet = hoja)
+
+# --- 4. Función para detectar outliers por IQR ---
+detect_outliers_iqr <- function(x, factor = 1.5) {
+  Q1 <- quantile(x, 0.25, na.rm = TRUE)
+  Q3 <- quantile(x, 0.75, na.rm = TRUE)
+  IQR <- Q3 - Q1
+  lower <- Q1 - factor * IQR
+  upper <- Q3 + factor * IQR
+  which(x < lower | x > upper)
+}
+
+# --- 5. Función para detectar outliers por Z-score ---
+detect_outliers_zscore <- function(x, threshold = 3) {
+  m <- mean(x, na.rm = TRUE)
+  s <- sd(x, na.rm = TRUE)
+  z <- (x - m) / s
+  which(abs(z) > threshold)
+}
+
+# --- 6. Identificar outliers en todas las columnas numéricas ---
+numeric_cols <- df %>% select(where(is.numeric)) %>% names()
+
+outlier_summary <- lapply(numeric_cols, function(col) {
+  vals <- df[[col]]
+  idxs <- if (metodo == "iqr") {
+    detect_outliers_iqr(vals, factor)
+  } else {
+    detect_outliers_zscore(vals, factor)
+  }
+  data.frame(
+    columna      = col,
+    num_outliers = length(idxs),
+    filas        = paste(idxs, collapse = ", ")
+  )
+}) %>% bind_rows()
+
+# --- 7. Mostrar resumen ---
+cat("Resumen de outliers detectados:\n")
+print(outlier_summary)
+
+# --- 8. Exportar detalle de filas con outliers a Excel (opcional) ---
+if (exportar_detalle) {
+  detalle <- outlier_summary %>%
+    filter(num_outliers > 0) %>%
+    separate_rows(filas, sep = ", *") %>%
+    mutate(fila = as.integer(filas)) %>%
+    select(columna, fila)
+
+  write_xlsx(detalle, path = ruta_detalle)
+  cat("/nDetalle de outliers exportado a:", ruta_detalle, "\n")
+}
+
+# -----------------------------------------------------------------------------
+# Fin del script
+# -----------------------------------------------------------------------------
